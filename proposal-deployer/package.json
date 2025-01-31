@@ -1,0 +1,17 @@
+{
+  "description": "Helper for Deploying proposals",
+  "dependencies": {
+    "@agoric/deploy-script-support": "0.10.4-upgrade-16a-dev-fb592e4.0",
+    "@agoric/xsnap": "0.14.2",
+    "@endo/far": "1.1.9",
+    "ava": "5.3.1"
+  },
+  "name": "proposal-deployer",
+  "packageManager": "yarn@4.5.3",
+  "private": true,
+  "scripts": {
+    "deploy": "./deploy.sh"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}
