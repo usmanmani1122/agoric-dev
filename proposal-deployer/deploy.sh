@@ -4,13 +4,13 @@
 set -o errexit -o errtrace -o nounset -o pipefail
 
 AGORIC_HOME="/state/$CHAIN_ID"
-BUNDLES_CACHE_PATH="/root/.agoric/cache"
-BUNDLES_DIRECTORY=bundles
+BUNDLES_CACHE_PATH="$HOME/.agoric/cache"
+BUNDLES_DIRECTORY="bundles"
 PROPOSAL_BUILD_LIST_PATH="$BUNDLES_DIRECTORY/bundle-list"
 PROPOSAL_BUILD_PATH="$BUNDLES_DIRECTORY/bundle-proposal.js"
 PROPOSAL_DEPLOY_SCRIPT_PATH="deployer-proposal.js"
 PROPOSAL_FILES_PREFIX="proposal-file"
-PROPOSAL_SOURCE_PATH=$(readlink --canonicalize "$1")
+PROPOSAL_SOURCE_PATH="$(readlink --canonicalize "$1")"
 SIGN_BROADCAST_OPTIONS="
  --broadcast-mode block \
  --chain-id $CHAIN_ID \
@@ -22,16 +22,16 @@ SIGN_BROADCAST_OPTIONS="
  --yes
 "
 
-agoric_bin_path="$(which agoric)"
-if [ -z "$agoric_bin_path" ]; then
-    echo "agoric binary not found"
-    exit 1
-fi
-
 build_proposal() {
     print "Generating build ⏳"
     agoric run "$PROPOSAL_DEPLOY_SCRIPT_PATH" >/dev/null 2>&1
     re_print "Generated builds ✅"
+}
+
+check_for_binaries() {
+    if ! curl --silent "https://raw.githubusercontent.com/Agoric/agoric-sdk/refs/heads/master/scripts/smoketest-binaries.sh" | /bin/bash >/dev/null; then
+        exit 1
+    fi
 }
 
 clean_up() {
@@ -185,9 +185,9 @@ wait_for_bootstrap() {
     done
 }
 
-source "$NVM_DIR/nvm.sh"
-
 reset
+check_for_binaries
+source "$NVM_DIR/nvm.sh"
 create_temporary_scripts
 build_proposal
 create_bundle_list
