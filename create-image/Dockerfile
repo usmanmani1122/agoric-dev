@@ -157,6 +157,7 @@ RUN <<-DOCKER_SCRIPT
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
     
     npm install --global node-gyp yarn
+    corepack enable
     
     echo "nvm version: $(nvm --version)"
     echo "node version: $(node --version)"
