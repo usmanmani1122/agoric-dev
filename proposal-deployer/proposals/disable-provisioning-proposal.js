@@ -7,7 +7,7 @@ import { E, Far } from "@endo/far";
 export const proposal = ({ consume: { provisionBridgeManager } }) =>
   E(provisionBridgeManager).setHandler(
     Far("No Provisioning Handler", {
-      fromBridge: async (obj) => {
+      fromBridge: (obj) => {
         throw Error(
           `Rejecting provisioning for payload: ${JSON.stringify(obj)}`
         );
