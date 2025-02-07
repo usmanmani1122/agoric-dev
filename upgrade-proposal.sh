@@ -84,3 +84,5 @@ main() {
      --yes
   "
 }
+
+main
