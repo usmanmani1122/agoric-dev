@@ -92,7 +92,7 @@ DOCKER_SCRIPT
 ########################################################
 # Starting installation of Go lang                     #
 ########################################################
-ENV CGO_ENABLED=0
+ARG TARGETPLATFORM
 ENV GOLANG_VERSION=1.22.12
 ENV GOPATH=/go
 ENV GOTOOLCHAIN=local
@@ -103,14 +103,28 @@ RUN <<-DOCKER_SCRIPT
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
+    case "$TARGETPLATFORM" in
+        "linux/amd64")
+            GOARCH="amd64"
+            ;;
+        "linux/arm64")
+            GOARCH="arm64"
+            ;;
+        *)
+            echo "Unsupported target platform: $TARGETPLATFORM"
+            exit 1
+            ;;
+    esac
+
     export GNUPGHOME="$(mktemp --directory)"
+    GO_FILENAME="go${GOLANG_VERSION}.linux-${GOARCH}.tar.gz"
 
     sha256="$(
         curl "https://go.dev/dl/?mode=json" --silent | \
-        jq --arg GOLANG_VERSION "$GOLANG_VERSION" --raw-output \
-         '.[].files[] | select(.filename == ("go" + $GOLANG_VERSION + ".linux-amd64.tar.gz")) | .sha256'
+        jq --arg GO_FILENAME "$GO_FILENAME" --raw-output \
+         '.[].files[] | select(.filename == $GO_FILENAME) | .sha256'
     )"
-    url="https://dl.google.com/go/go$GOLANG_VERSION.linux-amd64.tar.gz"
+    url="https://dl.google.com/go/$GO_FILENAME"
 
     curl "$url.asc" --output "go.tgz.asc"
     curl "$url" --output "go.tgz"
