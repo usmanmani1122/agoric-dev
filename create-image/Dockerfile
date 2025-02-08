@@ -1,5 +1,5 @@
 # Use the official DevContainers ubuntu base image
-FROM mcr.microsoft.com/devcontainers/base:0-ubuntu-20.04
+FROM mcr.microsoft.com/devcontainers/base:0-ubuntu-22.04
 
 
 SHELL ["/bin/bash", "-c"]
@@ -18,11 +18,6 @@ RUN <<-DOCKER_SCRIPT
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
     tee --append /etc/apt/sources.list.d/google-cloud-sdk.list
 
-    # add google chrome source
-    curl https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | \
-    tee --append /etc/apt/sources.list.d/google-chrome.list
-
     apt-get update
     apt-get install \
      apt-transport-https \
@@ -35,7 +30,6 @@ RUN <<-DOCKER_SCRIPT
      gcc \
      git \
      gnupg \
-     google-chrome-stable \
      google-cloud-cli \
      google-cloud-sdk-gke-gcloud-auth-plugin \
      jq \
@@ -49,7 +43,7 @@ RUN <<-DOCKER_SCRIPT
      openssh-client \
      pkg-config \
      procps \
-     python \
+     python3 \
      subversion \
      vim \
      xvfb \
@@ -88,7 +82,6 @@ if __name__ == "__main__":
 SQLITE_WEB
 
     gcloud version
-    google-chrome-stable --version
     kubectl version --client
 DOCKER_SCRIPT
 ########################################################
@@ -99,7 +92,8 @@ DOCKER_SCRIPT
 ########################################################
 # Starting installation of Go lang                     #
 ########################################################
-ENV GOLANG_VERSION=1.21.5
+ARG TARGETPLATFORM
+ENV GOLANG_VERSION=1.22.12
 ENV GOPATH=/go
 ENV GOTOOLCHAIN=local
 ENV PATH="${GOPATH}/bin:/usr/local${GOPATH}/bin:${PATH}"
@@ -109,10 +103,28 @@ RUN <<-DOCKER_SCRIPT
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
-    export GNUPGHOME="$(mktemp --directory)"
+    case "$TARGETPLATFORM" in
+        "linux/amd64")
+            GOARCH="amd64"
+            ;;
+        "linux/arm64")
+            GOARCH="arm64"
+            ;;
+        *)
+            echo "Unsupported target platform: $TARGETPLATFORM"
+            exit 1
+            ;;
+    esac
 
-    sha256="e2bc0b3e4b64111ec117295c088bde5f00eeed1567999ff77bc859d7df70078e"
-    url="https://dl.google.com/go/go$GOLANG_VERSION.linux-amd64.tar.gz"
+    export GNUPGHOME="$(mktemp --directory)"
+    GO_FILENAME="go${GOLANG_VERSION}.linux-${GOARCH}.tar.gz"
+
+    sha256="$(
+        curl "https://go.dev/dl/?mode=json" --silent | \
+        jq --arg GO_FILENAME "$GO_FILENAME" --raw-output \
+         '.[].files[] | select(.filename == $GO_FILENAME) | .sha256'
+    )"
+    url="https://dl.google.com/go/$GO_FILENAME"
 
     curl "$url.asc" --output "go.tgz.asc"
     curl "$url" --output "go.tgz"
@@ -122,9 +134,9 @@ RUN <<-DOCKER_SCRIPT
     gpg --batch --keyserver "keyserver.ubuntu.com" --recv-keys "2F52 8D36 D67B 69ED F998 D857 78BD 6547 3CB3 BD13"
     gpg --batch --verify "go.tgz.asc" "go.tgz"
     gpgconf --kill all
-    rm --force --recursive "$GNUPGHOME" go.tgz.asc
-    tar --directory /usr/local --extract --file "go.tgz" --gzip
-    rm go.tgz
+    rm --force --recursive "$GNUPGHOME" "go.tgz.asc"
+    tar --directory "/usr/local" --extract --file "go.tgz" --gzip
+    rm --force "go.tgz"
 
     mkdir --parents "$GOPATH/src" "$GOPATH/bin"
     chmod --recursive 777 "$GOPATH"
@@ -220,68 +232,68 @@ RUN <<-DOCKER_SCRIPT
 JSON_EOF
 
 cat <<JS_EOF> "$PING_PUB_SOURCE/vite.config.ts"
-    import { fileURLToPath, URL } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 
-    import { defineConfig } from 'vite';
-    import vue from '@vitejs/plugin-vue';
-    import vueJsx from '@vitejs/plugin-vue-jsx';
-    import Layouts from 'vite-plugin-vue-layouts';
-    import DefineOptions from 'unplugin-vue-define-options/vite';
-    import AutoImport from 'unplugin-auto-import/vite';
-    import Pages from 'vite-plugin-pages';
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import vueJsx from '@vitejs/plugin-vue-jsx';
+import Layouts from 'vite-plugin-vue-layouts';
+import DefineOptions from 'unplugin-vue-define-options/vite';
+import AutoImport from 'unplugin-auto-import/vite';
+import Pages from 'vite-plugin-pages';
 
-    import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
 
-    export default defineConfig({
+export default defineConfig({
     define: {
         'process.env': {},
     },
     plugins: [
         vue({
-        template: {
-            compilerOptions: {
-            isCustomElement: (tag) =>
-                [
-                'ping-connect-wallet',
-                'ping-token-convert',
-                'ping-tx-dialog',
-                ].includes(tag),
+            template: {
+                compilerOptions: {
+                isCustomElement: (tag) =>
+                    [
+                    'ping-connect-wallet',
+                    'ping-token-convert',
+                    'ping-tx-dialog',
+                    ].includes(tag),
+                },
             },
-        },
         }),
         vueJsx(),
         Pages({
-        dirs: ['./src/modules', './src/pages'],
-        exclude: ['**/*.ts'], // only load .vue as modules
+            dirs: ['./src/modules', './src/pages'],
+            exclude: ['**/*.ts'],
         }),
         Layouts({
-        layoutsDirs: './src/layouts/',
+            layoutsDirs: './src/layouts/',
         }),
         AutoImport({
-        imports: [
-            'vue',
-            'vue-router',
-            '@vueuse/core',
-            '@vueuse/math',
-            'vue-i18n',
-            'pinia',
-        ],
-        vueTemplate: true,
+            imports: [
+                'vue',
+                'vue-router',
+                '@vueuse/core',
+                '@vueuse/math',
+                'vue-i18n',
+                'pinia',
+            ],
+            vueTemplate: true,
         }),
         VueI18nPlugin({
-        runtimeOnly: true,
-        compositionOnly: true,
-        include: [
-            fileURLToPath(
-            new URL('./src/plugins/i18n/locales/**', import.meta.url)
-            ),
-        ],
+            runtimeOnly: true,
+            compositionOnly: true,
+            include: [
+                fileURLToPath(
+                    new URL('./src/plugins/i18n/locales/**', import.meta.url)
+                ),
+            ],
         }),
         DefineOptions(),
     ],
     resolve: {
         alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
+            '@': fileURLToPath(new URL('./src', import.meta.url)),
         },
     },
     optimizeDeps: {
@@ -289,19 +301,19 @@ cat <<JS_EOF> "$PING_PUB_SOURCE/vite.config.ts"
     },
     server: {
         proxy: {
-        '^/api/.*': {
-            target: 'http://localhost:$API_PORT',
-            changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api*/g, "")
-        },
-        '^/rpc/.*': {
-            target: 'http://localhost:$RPC_PORT',
-            changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/rpc*/g, "")
-        },
+            '^/api/.*': {
+                target: 'http://localhost:$API_PORT',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api*/g, "")
+            },
+            '^/rpc/.*': {
+                target: 'http://localhost:$RPC_PORT',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/rpc*/g, "")
+            },
         },
     },
-    });
+});
 JS_EOF
 
     . "$NVM_DIR/nvm.sh"
