@@ -6,6 +6,8 @@ CLUSTER_NAME="${CLUSTER_NAME:-"devnet"}"
 COMMIT_ID="$1"
 DEPOSIT_AMOUNT="500000000"
 DEPOSIT_DENOM="ubld"
+
+# This script will find the first wallet that has the required assets
 FIND_FUNDING_WALLET_SCRIPT="
   #!/usr/bin/env bash
   set -o errexit -o pipefail
@@ -25,7 +27,7 @@ FIND_FUNDING_WALLET_SCRIPT="
 
     if [ -n \"\$BAL\" ] && [ \"\$BAL\" -gt $DEPOSIT_AMOUNT ]
     then
-      echo \"\$NAME\"
+      echo -n \"\$NAME\"
       break
     fi
   done
@@ -39,9 +41,14 @@ UPGRADE_TO="$2"
 CONTEXT="gke_${PROJECT_NAME}_${REGION}_${CLUSTER_NAME}"
 ZIP_URL="https://github.com/Agoric/agoric-sdk/archive/${COMMIT_ID}.zip"
 
-CHECKSUM="sha256:$(curl "$ZIP_URL" -l -o - | shasum -a 256 | cut -d ' ' -f 1)"
+CHECKSUM="sha256:$(curl "$ZIP_URL" --location --output - --silent | shasum -a 256 | cut -d ' ' -f 1)"
 
-UPGRADE_INFO="{\"binaries\":{\"any\":\"$ZIP_URL//agoric-sdk-${COMMIT_ID}?checksum=$CHECKSUM\"},\"source\":\"$ZIP_URL?checksum=$CHECKSUM\"}"
+UPGRADE_INFO="{
+  \"binaries\": {
+    \"any\": \"$ZIP_URL//agoric-sdk-${COMMIT_ID}?checksum=$CHECKSUM\"
+  },
+  \"source\": \"$ZIP_URL?checksum=$CHECKSUM\"
+}"
 
 execute_command_inside_pod() {
   kubectl config get-contexts "$CONTEXT" >/dev/null 2>&1 ||
@@ -61,26 +68,32 @@ execute_command_inside_pod() {
 
 main() {
   FUNDING_WALLET="$(execute_command_inside_pod "$FIND_FUNDING_WALLET_SCRIPT")"
+
+  if test -z "$FUNDING_WALLET"; then
+    echo "[FATAL] No wallet found with the $DEPOSIT_AMOUNT$DEPOSIT_DENOM assets, can not submit the upgrade proposal"
+    exit 1
+  fi
+
   if test -z "$UPGRADE_HEIGHT"; then
     UPGRADE_HEIGHT="$(
       execute_command_inside_pod \
-        "echo \$((\$(agd status | jq --raw-output '.SyncInfo.latest_block_height') + 100))"
+        "echo -n \$((\$(agd status | jq --raw-output '.SyncInfo.latest_block_height') + 100))"
     )"
   fi
 
   execute_command_inside_pod "
-    agd tx gov submit-proposal software-upgrade $UPGRADE_TO \
-     --broadcast-mode block \
-     --chain-id \$CHAIN_ID \
-     --deposit $DEPOSIT_AMOUNT$DEPOSIT_DENOM \
+    agd tx gov submit-proposal software-upgrade \"$UPGRADE_TO\" \
+     --broadcast-mode \"block\" \
+     --chain-id \"\$CHAIN_ID\" \
+     --deposit \"$DEPOSIT_AMOUNT$DEPOSIT_DENOM\" \
      --description \"This proposal if voted will upgrade the chain to $UPGRADE_TO\" \
-     --from $FUNDING_WALLET \
-     --gas auto \
-     --keyring-backend test \
-     --home /state/\$CHAIN_ID \
+     --from \"$FUNDING_WALLET\" \
+     --gas \"auto\" \
+     --keyring-backend \"test\" \
+     --home \"/state/\$CHAIN_ID\" \
      --title \"Upgrade to $UPGRADE_TO\" \
-     --upgrade-height $UPGRADE_HEIGHT \
-     --upgrade-info $UPGRADE_INFO \
+     --upgrade-height \"$UPGRADE_HEIGHT\" \
+     --upgrade-info $(echo -n $UPGRADE_INFO | jq --raw-input --slurp .) \
      --yes
   "
 }
