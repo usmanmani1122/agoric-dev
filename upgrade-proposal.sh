@@ -1,4 +1,5 @@
 #! /bin/bash
+# shellcheck disable=SC2086,SC2089,SC2090
 
 set -o errexit -o pipefail
 
