@@ -103,12 +103,17 @@ RUN <<-DOCKER_SCRIPT
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
+    AMD_CHECKSUM="4fa4f869b0f7fc6bb1eb2660e74657fbf04cdd290b5aef905585c86051b34d43"
+    ARM_CHECKSUM="fd017e647ec28525e86ae8203236e0653242722a7436929b1f775744e26278e7"
+
     case "$TARGETPLATFORM" in
         "linux/amd64")
             GOARCH="amd64"
+            CHECKSUM="$AMD_CHECKSUM"
             ;;
         "linux/arm64")
             GOARCH="arm64"
+            CHECKSUM="$ARM_CHECKSUM"
             ;;
         *)
             echo "Unsupported target platform: $TARGETPLATFORM"
@@ -117,18 +122,12 @@ RUN <<-DOCKER_SCRIPT
     esac
 
     export GNUPGHOME="$(mktemp --directory)"
-    GO_FILENAME="go${GOLANG_VERSION}.linux-${GOARCH}.tar.gz"
 
-    sha256="$(
-        curl "https://go.dev/dl/?mode=json" --silent | \
-        jq --arg GO_FILENAME "$GO_FILENAME" --raw-output \
-         '.[].files[] | select(.filename == $GO_FILENAME) | .sha256'
-    )"
-    url="https://dl.google.com/go/$GO_FILENAME"
+    url="https://dl.google.com/go/go$GOLANG_VERSION.linux-$GOARCH.tar.gz"
 
     curl "$url.asc" --output "go.tgz.asc"
     curl "$url" --output "go.tgz"
-    echo "$sha256 *go.tgz" | sha256sum --check -
+    echo "$CHECKSUM *go.tgz" | sha256sum --check -
 
     gpg --batch --keyserver "keyserver.ubuntu.com" --recv-keys "EB4C 1BFD 4F04 2F6D DDCC EC91 7721 F63B D38B 4796"
     gpg --batch --keyserver "keyserver.ubuntu.com" --recv-keys "2F52 8D36 D67B 69ED F998 D857 78BD 6547 3CB3 BD13"
