@@ -133,9 +133,9 @@ reset() {
 
 # start the chain
 start_chain() {
-    LOG_FILE="/state/app.log"
-    CONTEXTUAL_SLOGFILE="/state/contextual_slogs.json"
-    SLOGFILE="/state/slogs.json"
+    CONTEXTUAL_SLOGFILE="$AGORIC_HOME/contextual_slogs.json"
+    LOG_FILE="$AGORIC_HOME/app.log"
+    SLOGFILE="$AGORIC_HOME/slogs.json"
 
     if test "$RESET" == "--reset"; then
         rm --force "$CONTEXTUAL_SLOGFILE" "$LOG_FILE" "$SLOGFILE"
@@ -144,7 +144,7 @@ start_chain() {
     touch "$CONTEXTUAL_SLOGFILE" "$SLOGFILE"
 
     DEBUG="SwingSet:ls,SwingSet:vat" \
-        CHAIN_BOOTSTRAP_VAT_CONFIG="@agoric/vm-config/decentral-demo-config.json" \
+        CHAIN_BOOTSTRAP_VAT_CONFIG="@agoric/vm-config/decentral-devnet-config.json" \
         CONTEXTUAL_SLOGFILE="$CONTEXTUAL_SLOGFILE" \
         SLOGFILE="$SLOGFILE" \
         SLOGSENDER="@agoric/telemetry/src/context-aware-slog-file.js" \
