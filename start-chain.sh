@@ -1,13 +1,14 @@
-#!/bin/bash
+#! /bin/bash
 # shellcheck disable=SC1091,SC2086,SC2115
 
 set -o errexit -o errtrace
 
-ACCOUNTS=("gov1" "gov2" "gov3" "my-wallet" "user1" "validator")
+ACCOUNTS=("gov1" "gov2" "gov3" "gov4" "my-wallet" "user1" "validator")
 ACCOUNTS_RECOVERY_KEYS=(
-    "such field health riot cost kitten silly tube flash wrap festival portion imitate this make question host bitter puppy wait area glide soldier knee"
-    "physical immune cargo feel crawl style fox require inhale law local glory cheese bring swear royal spy buyer diesel field when task spin alley"
-    "tackle hen gap lady bike explain erode midnight marriage wide upset culture model select dial trial swim wood step scan intact what card symptom"
+    "arch theme perfect teach attract hazard brain fossil wing rapid cave quit rotate crowd stomach paddle alpha copper goat daring atom physical rigid brave"
+    "urban provide assist perfect tower trust tooth cage bunker hurt spatial blame focus insane neck excite shine curtain clinic little pair only blouse game"
+    "clinic pause person south add cabin visual best outdoor engage enhance jealous best robust hill inspire ridge clap spike pyramid thrive round police unable"
+    "soldier thank cargo raw asset fresh monster stumble absorb between hint rib dumb cake fox ring canvas type jump term slush piano tiger mule"
     "lumber shuffle lottery palm sense hollow swift drink lazy media bicycle neutral caught garbage link churn copper desert domain twin stereo expect air genius"
     "spike siege world rather ordinary upper napkin voice brush oppose junior route trim crush expire angry seminar anchor panther piano image pepper chest alone"
     "soap hub stick bomb dish index wing shield cruel board siren force glory assault rotate busy area topple resource okay clown wedding hint unhappy"
@@ -24,7 +25,7 @@ COINS=(
     "ibc/toyusdc"                                                          # test_usdc
     "ibc/06362C6F7F4FB702B94C13CD2E7C03DEC357683FD978936340B43FBFBC5351EB" # test_atom
     "ibc/BA313C4A19DFBF943586C0387E6B11286F9E416B4DD27574E6909CABE0E342FA" # main_ATOM
-    "ibc/295548A78785A1007F232DE286149A6FF512F180AF5657780FC89C009E2C348F"
+    "ibc/295548A78785A1007F232DE286149A6FF512F180AF5657780FC89C009E2C348F" # main_usdc_axl
     "ibc/6831292903487E58BF9A195FDDC8A2E626B3DF39B88F4E7F41C935CADBAF54AC" # main_usdc_grav
     "ibc/F2331645B9683116188EF36FC04A809C28BD36B54555E8705A37146D0182F045" # main_usdt_axl
     "ibc/386D09AE31DA7C0C93091BB45D08CB7A0730B1F697CD813F06A5446DCF02EEB2" # main_usdt_grv
