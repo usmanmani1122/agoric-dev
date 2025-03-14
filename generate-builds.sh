@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/bash
 # shellcheck disable=SC1091,SC2086,SC2115
 
 set -o errexit
@@ -40,7 +40,7 @@ create_and_link_builds() {
 }
 
 log_error() {
-  printf "\033[31m%s\033[0m\n" "$1"
+    printf "\033[31m%s\033[0m\n" "$1"
 }
 
 rm --force --recursive $SDK_SRC/golang/cosmos/build/*

@@ -194,130 +194,64 @@ RUN <<-DOCKER_SCRIPT
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
-    mkdir --parents "$PING_PUB_SOURCE"
-    git clone "https://github.com/ping-pub/explorer.git" "$PING_PUB_SOURCE"
+    COMMIT_HASH="4d2d093560c52e08458f97f451dc1f0690e00094"
+    EXPLORER_FILES_BASE_URL="https://raw.githubusercontent.com/Agoric/instagoric/refs/heads/main/bases/explorer"
+    PING_PUB_REPOSITORY_LINK="https://github.com/ping-pub/explorer.git"
 
-    rm $PING_PUB_SOURCE/chains/mainnet/*.json $PING_PUB_SOURCE/chains/testnet/*.json
+    LOGOS_DIRECTORY="$PING_PUB_SOURCE/dist/logos"
 
-    cat <<JSON_EOF> "$PING_PUB_SOURCE/chains/mainnet/agoric.json"
-{
-    "addr_prefix": "agoric",
-    "api": ["http://localhost:$CHAIN_EXPLORER_PORT/api"],
-    "assets": [
-        {
-            "base": "ubld",
-            "coingecko_id": "agoric",
-            "exponent": "6",
-            "logo": "",
-            "symbol": "BLD"
-        },
-        {
-            "base": "uist",
-            "coingecko_id": "",
-            "exponent": "6",
-            "logo": "",
-            "symbol": "IST"
-        }
-    ],
-    "chain_name": "agoric",
-    "coin_type": "564",
-    "coingecko": "agoric",
-    "logo": "https://agoric.explorers.guru/chains/agoric.svg",
-    "min_tx_fee": "8000",
-    "rpc": ["http://localhost:$CHAIN_EXPLORER_PORT/rpc"],
-    "sdk_version": "0.45.4",
-    "theme_color": "#812CD6"
-}
-JSON_EOF
+    build() {
+        yarn --cwd "$PING_PUB_SOURCE"
+        yarn --cwd "$PING_PUB_SOURCE" build
+    }
 
-cat <<JS_EOF> "$PING_PUB_SOURCE/vite.config.ts"
-import { fileURLToPath, URL } from 'node:url';
+    commit_changes() {
+        git -C "$PING_PUB_SOURCE" add .
+        git -C "$PING_PUB_SOURCE" commit --message "patches" --no-verify
+    }
 
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import vueJsx from '@vitejs/plugin-vue-jsx';
-import Layouts from 'vite-plugin-vue-layouts';
-import DefineOptions from 'unplugin-vue-define-options/vite';
-import AutoImport from 'unplugin-auto-import/vite';
-import Pages from 'vite-plugin-pages';
+    get_files() {
+        curl "$EXPLORER_FILES_BASE_URL/config.patch" --fail --location --output "$HOME/ping-pub.patch" --silent
+        curl "$EXPLORER_FILES_BASE_URL/agoric.json" --fail --location --output "$HOME/agoric.json" --silent
+    }
 
-import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
+    get_logos() {
+        mkdir --parents "$LOGOS_DIRECTORY"
+        curl "$EXPLORER_FILES_BASE_URL/agoric.png" --fail --location --output "$LOGOS_DIRECTORY/agoric.png" --silent
+        curl "$EXPLORER_FILES_BASE_URL/agoric-bld.svg" --fail --location --output "$LOGOS_DIRECTORY/agoric-bld.svg" --silent
+    }
 
-export default defineConfig({
-    define: {
-        'process.env': {},
-    },
-    plugins: [
-        vue({
-            template: {
-                compilerOptions: {
-                isCustomElement: (tag) =>
-                    [
-                    'ping-connect-wallet',
-                    'ping-token-convert',
-                    'ping-tx-dialog',
-                    ].includes(tag),
-                },
-            },
-        }),
-        vueJsx(),
-        Pages({
-            dirs: ['./src/modules', './src/pages'],
-            exclude: ['**/*.ts'],
-        }),
-        Layouts({
-            layoutsDirs: './src/layouts/',
-        }),
-        AutoImport({
-            imports: [
-                'vue',
-                'vue-router',
-                '@vueuse/core',
-                '@vueuse/math',
-                'vue-i18n',
-                'pinia',
-            ],
-            vueTemplate: true,
-        }),
-        VueI18nPlugin({
-            runtimeOnly: true,
-            compositionOnly: true,
-            include: [
-                fileURLToPath(
-                    new URL('./src/plugins/i18n/locales/**', import.meta.url)
-                ),
-            ],
-        }),
-        DefineOptions(),
-    ],
-    resolve: {
-        alias: {
-            '@': fileURLToPath(new URL('./src', import.meta.url)),
-        },
-    },
-    optimizeDeps: {
-        entries: ['./src/**/*.vue'],
-    },
-    server: {
-        proxy: {
-            '^/api/.*': {
-                target: 'http://localhost:$API_PORT',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api*/g, "")
-            },
-            '^/rpc/.*': {
-                target: 'http://localhost:$RPC_PORT',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/rpc*/g, "")
-            },
-        },
-    },
-});
-JS_EOF
+    set_chain_data() {
+        rm --force $PING_PUB_SOURCE/chains/mainnet/*.json $PING_PUB_SOURCE/chains/testnet/*.json
+        jq '.api[] = "/api" | .rpc[] = "/rpc"' --raw-output < "$HOME/agoric.json" > "$PING_PUB_SOURCE/chains/mainnet/agoric.json"
+        rm --force "$HOME/agoric.json"
+    }
+
+    setup_repository() {
+        mkdir --parents "$PING_PUB_SOURCE"
+
+        git clone "$PING_PUB_REPOSITORY_LINK" "$PING_PUB_SOURCE"
+        git -C "$PING_PUB_SOURCE" checkout "$COMMIT_HASH"
+        git -C "$PING_PUB_SOURCE" config user.email "root@ubuntu.com"
+        git -C "$PING_PUB_SOURCE" config user.name "root"
+
+        patch --directory "$PING_PUB_SOURCE" --input "$HOME/ping-pub.patch" --strip "1"
+        sed "$PING_PUB_SOURCE/vite.config.ts" \
+            --expression "s|\$RPCNODES_SERVICE_HOST|localhost|" \
+            --expression "s|\$RPCNODES_SERVICE_PORT_API|$API_PORT|" \
+            --expression "s|\$RPCNODES_SERVICE_PORT_RPC|$RPC_PORT|" \
+            --in-place
+
+        rm --force "$HOME/ping-pub.patch"
+    }
 
     . "$NVM_DIR/nvm.sh"
-    yarn --cwd "$PING_PUB_SOURCE"
-    yarn --cwd "$PING_PUB_SOURCE" build
+    get_files
+    setup_repository
+    set_chain_data
+    commit_changes
+    build
+    get_logos
 DOCKER_SCRIPT
 ########################################################
 # Finished installation of Ping Pub Explorer           #
