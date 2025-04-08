@@ -3108,6 +3108,8 @@ __metadata:
   resolution: "proposal-deployer@workspace:."
   dependencies:
     "@agoric/deploy-script-support": "npm:0.10.4-upgrade-16a-dev-fb592e4.0"
+    "@agoric/store": "npm:^0.9.2"
+    "@agoric/vat-data": "npm:^0.5.2"
     "@agoric/xsnap": "npm:0.14.2"
     "@endo/far": "npm:1.1.9"
     ava: "npm:5.3.1"
