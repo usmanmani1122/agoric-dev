@@ -1,3 +1,5 @@
+#! /usr/bin/env node
+
 import { unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { exec } from "node:child_process";
