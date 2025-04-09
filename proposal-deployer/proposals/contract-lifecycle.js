@@ -91,6 +91,25 @@ export const proposal = ({
 //       })
 //   );
 
+// /**
+//  * Termination
+//  *
+//  * @param {{
+//  *  consume: {
+//  *      chainTimerService: Promise<import('@agoric/time').TimerService>;
+//  *  }
+//  * }} powers
+//  * @param {import('@agoric/vat-data').Baggage} __
+//  */
+// export const proposal = ({
+//   instance: {
+//     consume: { [contractName]: contractInstancePromise },
+//   },
+// }) =>
+//   contractInstancePromise.then(({ adminFacet }) =>
+//     E(adminFacet).terminateContract(Error("Terminate contract"))
+//   );
+
 /**
  * First incarnation
  *
