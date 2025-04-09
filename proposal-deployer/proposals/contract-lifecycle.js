@@ -25,7 +25,8 @@ export const getManifest = ({ restoreRef }, { ref }) => ({
     [proposal.name]: {
       consume: {
         chainTimerService: true,
-        zoe: true,
+        contractKits: true,
+        startUpgradable: true,
       },
       installation: {
         consume: { [contractName]: true },
@@ -50,7 +51,7 @@ export const getManifest = ({ restoreRef }, { ref }) => ({
  * @param {import('@agoric/vat-data').Baggage} __
  */
 export const proposal = ({
-  consume: { chainTimerService: chainTimerServicePromise, zoe },
+  consume: { chainTimerService: chainTimerServicePromise, startUpgradable },
   installation: {
     consume: { [contractName]: installation },
   },
@@ -59,9 +60,13 @@ export const proposal = ({
   },
 }) =>
   chainTimerServicePromise.then((chainTimerService) =>
-    E(zoe)
-      .startInstance(installation, {}, {}, { chainTimerService }, contractName)
-      .then((instance) => produceInstance.resolve(instance))
+    E(startUpgradable)({
+      installation,
+      issuerKeywordRecord: {},
+      terms: {},
+      privateArgs: { chainTimerService },
+      label: contractName,
+    }).then(({ instance }) => produceInstance.resolve(instance))
   );
 
 // /**
@@ -76,19 +81,29 @@ export const proposal = ({
 //  */
 // export const proposal = (
 //   {
-//     consume: { chainTimerService: chainTimerServicePromise },
+//     consume: {
+//       chainTimerService: chainTimerServicePromise,
+//       contractKits: contractKitsPromise,
+//     },
 //     instance: {
 //       consume: { [contractName]: contractInstancePromise },
 //     },
 //   },
 //   { options }
 // ) =>
-//   Promise.all([chainTimerServicePromise, contractInstancePromise]).then(
-//     ([chainTimerService, { adminFacet }]) =>
-//       E(adminFacet).upgradeContract(options.ref.bundleID, {
-//         chainTimerService,
-//         message: "Second incarnation invoked at time",
-//       })
+//   Promise.all([
+//     chainTimerServicePromise,
+//     contractInstancePromise,
+//     contractKitsPromise,
+//   ]).then(([chainTimerService, contractInstance, contractKits]) =>
+//     E(contractKits)
+//       .get(contractInstance)
+//       .then(({ adminFacet }) =>
+//         E(adminFacet).upgradeContract(options.ref.bundleID, {
+//           chainTimerService,
+//           message: "Second incarnation invoked at time",
+//         })
+//       )
 //   );
 
 // /**
@@ -102,13 +117,22 @@ export const proposal = ({
 //  * @param {import('@agoric/vat-data').Baggage} __
 //  */
 // export const proposal = ({
+//   consume: { contractKits: contractKitsPromise },
 //   instance: {
 //     consume: { [contractName]: contractInstancePromise },
+//     produce: { [contractName]: produceInstance },
 //   },
 // }) =>
-//   contractInstancePromise.then(({ adminFacet }) =>
-//     E(adminFacet).terminateContract(Error("Terminate contract"))
-//   );
+//   Promise.all([contractInstancePromise, contractKitsPromise])
+//     .then(([contractInstance, contractKits]) =>
+//       E(contractKits)
+//         .get(contractInstance)
+//         .then(({ adminFacet }) =>
+//           E(adminFacet).terminateContract(Error("Terminate contract"))
+//         )
+//         .finally(() => E(contractKits).delete(contractInstance))
+//     )
+//     .finally(produceInstance.reset);
 
 /**
  * First incarnation
