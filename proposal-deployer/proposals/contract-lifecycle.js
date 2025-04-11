@@ -101,7 +101,7 @@ export const proposal = ({
 //       .then(({ adminFacet }) =>
 //         E(adminFacet).upgradeContract(options.ref.bundleID, {
 //           chainTimerService,
-//           message: "Second incarnation invoked at time",
+//           message: "Second incarnation invoked",
 //         })
 //       )
 //   );
@@ -134,58 +134,19 @@ export const proposal = ({
 //     )
 //     .finally(produceInstance.reset);
 
-/**
- * First incarnation
- *
- * @param {any} _
- * @param {{chainTimerService: import('@agoric/time').TimerService}} privateArgs
- * @param {import('@agoric/vat-data').Baggage} baggage
- */
-export const start = async (_, { chainTimerService, ...rest }, baggage) => {
-  assert(
-    !Object.keys(rest).length,
-    `Got unexpected parameters ${JSON.stringify(rest)}`
-  );
-
-  return {
-    publicFacet: prepareExo(
-      baggage,
-      "Public Facet",
-      M.interface("Contract Life Cycle", {
-        log: M.call().returns(M.promise()),
-      }),
-      {
-        /**
-         * @type {(...args: string) => Promise<void>}
-         */
-        log: (...args) =>
-          E(chainTimerService)
-            .getCurrentTimestamp()
-            .then((time) =>
-              console.log(
-                `First incarnation invoked at time "${Number(
-                  time.absValue
-                )}" with arguments: `,
-                ...args
-              )
-            ),
-      }
-    ),
-  };
-};
-
 // /**
-//  * Second incarnation
+//  * First incarnation
 //  *
 //  * @param {any} _
-//  * @param {{
-//  *  chainTimerService: import('@agoric/time').TimerService;
-//  *  message: string;
-//  * }} privateArgs
+//  * @param {{chainTimerService: import('@agoric/time').TimerService}} privateArgs
 //  * @param {import('@agoric/vat-data').Baggage} baggage
 //  */
-// export const start = async (_, { chainTimerService, message }, baggage) => {
-//   assert(!!message, "Expected message parameter");
+// export const start = async (_, { chainTimerService, ...rest }, baggage) => {
+//   assert(
+//     !Object.keys(rest).length,
+//     `Got unexpected parameters ${JSON.stringify(rest)}`
+//   );
+//   let logCount = 0;
 
 //   return {
 //     publicFacet: prepareExo(
@@ -203,7 +164,9 @@ export const start = async (_, { chainTimerService, ...rest }, baggage) => {
 //             .getCurrentTimestamp()
 //             .then((time) =>
 //               console.log(
-//                 `${message} "${Number(time.absValue)}" with arguments: `,
+//                 `First incarnation of contract invoked, time: "${Number(
+//                   time.absValue
+//                 )}", count: ${logCount++}, arguments: `,
 //                 ...args
 //               )
 //             ),
@@ -211,3 +174,44 @@ export const start = async (_, { chainTimerService, ...rest }, baggage) => {
 //     ),
 //   };
 // };
+
+/**
+ * Second incarnation
+ *
+ * @param {any} _
+ * @param {{
+ *  chainTimerService: import('@agoric/time').TimerService;
+ *  message: string;
+ * }} privateArgs
+ * @param {import('@agoric/vat-data').Baggage} baggage
+ */
+export const start = async (_, { chainTimerService, message }, baggage) => {
+  assert(!!message, "Expected message parameter");
+  let logCount = 0;
+
+  return {
+    publicFacet: prepareExo(
+      baggage,
+      "Public Facet",
+      M.interface("Contract Life Cycle", {
+        log: M.call().returns(M.promise()),
+      }),
+      {
+        /**
+         * @type {(...args: string) => Promise<void>}
+         */
+        log: (...args) =>
+          E(chainTimerService)
+            .getCurrentTimestamp()
+            .then((time) =>
+              console.log(
+                `${message}, time: "${Number(
+                  time.absValue
+                )}", count: ${logCount++}, arguments: `,
+                ...args
+              )
+            ),
+      }
+    ),
+  };
+};
