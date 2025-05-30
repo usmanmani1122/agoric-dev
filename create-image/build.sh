@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ARCH="$(uname -m)"
+DIRECTORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 DOCKER_PLATFORM=""
 
 case "$ARCH" in
@@ -17,6 +18,7 @@ case "$ARCH" in
 esac
 
 docker buildx build \
+  --file "$DIRECTORY_PATH/Dockerfile" \
   --platform "$DOCKER_PLATFORM" \
   --tag "agoric-custom-dev:latest" \
   .

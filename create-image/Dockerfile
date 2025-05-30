@@ -13,11 +13,6 @@ RUN <<-DOCKER_SCRIPT
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
-    # add gcloud source
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor --output /usr/share/keyrings/cloud.google.gpg
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
-    tee --append /etc/apt/sources.list.d/google-cloud-sdk.list
-
     apt-get update
     apt-get install \
      apt-transport-https \
@@ -30,8 +25,6 @@ RUN <<-DOCKER_SCRIPT
      gcc \
      git \
      gnupg \
-     google-cloud-cli \
-     google-cloud-sdk-gke-gcloud-auth-plugin \
      jq \
      less \
      libc6-dev \
@@ -50,17 +43,7 @@ RUN <<-DOCKER_SCRIPT
      --yes
     apt-get clean --yes
 
-    # install kubectl
-    KUBECTL_RELEASE_VERSION="$(curl --location --silent https://dl.k8s.io/release/stable.txt)"
-
-    curl "https://dl.k8s.io/release/$KUBECTL_RELEASE_VERSION/bin/linux/amd64/kubectl" \
-     --location --remote-name
-    curl "https://dl.k8s.io/release/$KUBECTL_RELEASE_VERSION/bin/linux/amd64/kubectl.sha256" \
-     --location --remote-name
-
-    echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
-    install --group root --mode 0755 --owner root \
-     kubectl /usr/local/bin/kubectl
+    rm --force --recursive /var/lib/apt/lists/*
 
     apt-get update
     apt-get install python3-pip --yes
@@ -80,9 +63,6 @@ if __name__ == "__main__":
     sys.argv[0] = re.sub(r"(-script\.pyw|\.exe)?$", "", sys.argv[0])
     sys.exit(main())
 SQLITE_WEB
-
-    gcloud version
-    kubectl version --client
 DOCKER_SCRIPT
 ########################################################
 # Finished Miscellaneous installations                 #
@@ -93,18 +73,19 @@ DOCKER_SCRIPT
 # Starting installation of Go lang                     #
 ########################################################
 ARG TARGETPLATFORM
-ENV GOLANG_VERSION=1.22.12
+ENV GOLANG_VERSION=1.23.4
 ENV GOPATH=/go
 ENV GOTOOLCHAIN=local
 ENV PATH="${GOPATH}/bin:/usr/local${GOPATH}/bin:${PATH}"
 
+# Refer to https://go.dev/dl for checksums
 RUN <<-DOCKER_SCRIPT
     #!/bin/bash
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
-    AMD_CHECKSUM="4fa4f869b0f7fc6bb1eb2660e74657fbf04cdd290b5aef905585c86051b34d43"
-    ARM_CHECKSUM="fd017e647ec28525e86ae8203236e0653242722a7436929b1f775744e26278e7"
+    AMD_CHECKSUM="6924efde5de86fe277676e929dc9917d466efa02fb934197bc2eba35d5680971"
+    ARM_CHECKSUM="16e5017863a7f6071363782b1b8042eb12c6ca4f4cd71528b2123f0a1275b13e"
 
     case "$TARGETPLATFORM" in
         "linux/amd64")

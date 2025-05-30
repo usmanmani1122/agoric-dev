@@ -84,7 +84,7 @@ main() {
 
   execute_command_inside_pod "
     agd tx gov submit-proposal software-upgrade \"$UPGRADE_TO\" \
-     --broadcast-mode \"block\" \
+     --broadcast-mode \"sync\" \
      --chain-id \"\$CHAIN_ID\" \
      --deposit \"$DEPOSIT_AMOUNT$DEPOSIT_DENOM\" \
      --description \"This proposal if voted will upgrade the chain to $UPGRADE_TO\" \
