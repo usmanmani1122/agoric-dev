@@ -4,7 +4,7 @@ set -o errexit -o errtrace -o nounset -o pipefail
 
 GOLANG_CI_LINT="1.63.4"
 GOPLS_VERSION="0.16.2"
-SDK_SRC="${SDK_SRC:-"/workspace/repositories/agoric-sdk"}"
+SDK_SRC="${SDK_SRC:-"/workspaces/repositories/agoric-sdk"}"
 STATIC_CHECK_VERSION="0.5.1"
 
 go install -v "github.com/golangci/golangci-lint/cmd/golangci-lint@v$GOLANG_CI_LINT"

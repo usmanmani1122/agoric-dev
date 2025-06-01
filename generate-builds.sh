@@ -4,7 +4,7 @@
 set -o errexit
 
 CURRENT_DIRECTORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-SDK_SRC="${SDK_SRC:-"/workspace/repositories/agoric-sdk"}"
+SDK_SRC="${SDK_SRC:-"/workspaces/repositories/agoric-sdk"}"
 
 CLI_PATH="$SDK_SRC/packages/agoric-cli"
 
