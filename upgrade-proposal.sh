@@ -3,8 +3,8 @@
 
 set -o errexit -o pipefail
 
-CLUSTER_NAME="${CLUSTER_NAME:-"devnet"}"
 COMMIT_ID="$1"
+CONTEXT="${CONTEXT:-"instagoric"}"
 DEPOSIT_AMOUNT="500000000"
 DEPOSIT_DENOM="ubld"
 
@@ -33,13 +33,10 @@ FIND_FUNDING_WALLET_SCRIPT="
     fi
   done
 "
-NAMESPACE="${NAMESPACE:-"instagoric"}"
+NAMESPACE="${NAMESPACE:-"devnet"}"
 POD_NAME="${POD_NAME:-"validator-primary-0"}"
-PROJECT_NAME="simulationlab"
-REGION="us-central1"
 UPGRADE_TO="$2"
 
-CONTEXT="gke_${PROJECT_NAME}_${REGION}_${CLUSTER_NAME}"
 ZIP_URL="https://github.com/Agoric/agoric-sdk/archive/${COMMIT_ID}.zip"
 
 CHECKSUM="sha256:$(curl "$ZIP_URL" --location --output - --silent | shasum -a 256 | cut -d ' ' -f 1)"
@@ -52,9 +49,6 @@ UPGRADE_INFO="{
 }"
 
 execute_command_inside_pod() {
-  kubectl config get-contexts "$CONTEXT" >/dev/null 2>&1 ||
-    gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$REGION"
-
   local command=$1
 
   kubectl exec "$POD_NAME" \
@@ -81,6 +75,8 @@ main() {
         "echo -n \$((\$(agd status | jq --raw-output '.SyncInfo.latest_block_height') + 100))"
     )"
   fi
+
+  echo "Using wallet '$FUNDING_WALLET' for submitting proposal '$UPGRADE_TO' with info '$UPGRADE_INFO' to be executed at height '$UPGRADE_HEIGHT'"
 
   execute_command_inside_pod "
     agd tx gov submit-proposal software-upgrade \"$UPGRADE_TO\" \
