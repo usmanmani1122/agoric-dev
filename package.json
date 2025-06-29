@@ -1,0 +1,37 @@
+{
+  "description": "Files used in development in agoric",
+  "devDependencies": {
+    "@endo/init": "1.1.11",
+    "@endo/pass-style": "1.6.2",
+    "@eslint/js": "9.26.0",
+    "@typescript-eslint/eslint-plugin": "8.31.1",
+    "@typescript-eslint/parser": "8.31.1",
+    "ava": "6.3.0",
+    "crypto-random-string": "5.0.0",
+    "eslint": "9.22.0",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-prettier": "5.3.1",
+    "prettier": "3.5.3",
+    "typescript": "5.8.3",
+    "typescript-eslint": "8.31.1"
+  },
+  "name": "agoric-dev",
+  "packageManager": "yarn@4.9.0",
+  "prettier": {
+    "jsxSingleQuote": true,
+    "singleQuote": true,
+    "trailingComma": "all"
+  },
+  "private": true,
+  "scripts": {
+    "across-workspace-run": "./across-workspace-run.sh",
+    "lint-check": "yarn across-workspace-run eslint",
+    "lint-fix": "yarn across-workspace-run eslint --fix",
+    "test": "yarn across-workspace-run ava"
+  },
+  "type": "module",
+  "version": "0.1.0",
+  "workspaces": [
+    "scripts"
+  ]
+}
