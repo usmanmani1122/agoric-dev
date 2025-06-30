@@ -14,8 +14,10 @@ ACCOUNTS_RECOVERY_KEYS=(
     "soap hub stick bomb dish index wing shield cruel board siren force glory assault rotate busy area topple resource okay clown wedding hint unhappy"
 )
 AMOUNT="1000000000000000000"
+CHAIN_BOOTSTRAP_VAT_CONFIG="${CHAIN_BOOTSTRAP_VAT_CONFIG:-"@agoric/vm-config/decentral-devnet-config.json"}"
 CURRENT_DIRECTORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 RESET="$1"
+SLOGSENDER="${SLOGSENDER:-"@agoric/telemetry/src/context-aware-slog-file.js"}"
 UBLD_COIN="ubld"
 VOTING_PERIOD="${VOTING_PERIOD:-1m}"
 
@@ -145,10 +147,10 @@ start_chain() {
     touch "$CONTEXTUAL_SLOGFILE" "$SLOGFILE"
 
     DEBUG="SwingSet:ls,SwingSet:vat" \
-        CHAIN_BOOTSTRAP_VAT_CONFIG="@agoric/vm-config/decentral-devnet-config.json" \
+        CHAIN_BOOTSTRAP_VAT_CONFIG="$CHAIN_BOOTSTRAP_VAT_CONFIG" \
         CONTEXTUAL_SLOGFILE="$CONTEXTUAL_SLOGFILE" \
         SLOGFILE="$SLOGFILE" \
-        SLOGSENDER="@agoric/telemetry/src/context-aware-slog-file.js" \
+        SLOGSENDER="$SLOGSENDER" \
         ag-chain-cosmos start \
         --home "$AGORIC_HOME" --log_format "json" 2>&1 |
         tee --append "$LOG_FILE"
@@ -158,7 +160,7 @@ start_chain() {
 update_configurations() {
     echo -E "$(
         jq \
-            ".app_state.crisis.constant_fee.denom = \"$UBLD_COIN\" | .app_state.mint.params.inflation_max = \"0.000000000000000000\" | .app_state.gov.voting_params.voting_period = \"$VOTING_PERIOD\"" \
+            ".app_state.crisis.constant_fee.denom = \"$UBLD_COIN\" | .app_state.mint.params.inflation_max = \"0.000000000000000000\" | .app_state.gov.params.voting_period = \"$VOTING_PERIOD\"" \
             "$AGORIC_HOME/config/genesis.json"
     )" >"$AGORIC_HOME/config/genesis.json"
     sed '/^\[api]/,/^\[/{s/^enable[[:space:]]*=.*/enable = true/}' "$AGORIC_HOME/config/app.toml" \
