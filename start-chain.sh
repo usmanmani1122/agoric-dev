@@ -19,6 +19,7 @@ EXTERNAL_RPC_ADDRESS=""
 EXTERNAL_SEED=""
 GENESIS_FILE_PATH=""
 GENESIS_SOURCE_URL=""
+JSOT_BINARY_NAME="jsot"
 LATEST_HEIGHT=""
 MONIKER="${MONIKER:-"blockchain-node"}"
 NETWORK_CONFIG=""
@@ -52,6 +53,7 @@ COINS=(
 )
 CURRENT_DIRECTORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>"$VOID" && pwd)"
 GENESIS_AMOUNT="50000000$UBLD_COIN"
+JSOT_DOWNLOAD_PATH="https://storage.googleapis.com/agoric-snapshots-public/$JSOT_BINARY_NAME"
 
 # Add some default accounts
 add_default_wallets() {
@@ -93,6 +95,13 @@ check_for_dependencies() {
             log_error "[FATAL] yarn or node not installed"
             exit 1
         fi
+    fi
+
+    if ! which "$JSOT_BINARY_NAME" >"$VOID"; then
+        local binary_path="/usr/bin/$JSOT_BINARY_NAME"
+        echo "'$JSOT_BINARY_NAME' not found, installing..."
+        curl --fail --location --output "$binary_path" --silent "$JSOT_DOWNLOAD_PATH"
+        chmod +x "$binary_path"
     fi
 }
 
@@ -211,47 +220,68 @@ start_chain() {
 
 # Update some configurations
 update_configurations() {
-    local genesis_contents
+    local contents
 
-    sed "$AGORIC_HOME/config/app.toml" \
-        --expression 's|^pruning-interval =.*|pruning-interval = 1000|' \
-        --expression 's|^pruning-keep-every =.*|pruning-keep-every = 1000|' \
-        --expression 's|^pruning-keep-recent =.*|pruning-keep-recent = 10000|' \
-        --expression 's|^rpc-max-body-bytes =.*|rpc-max-body-bytes = \"15000000\"|' \
-        --expression '/^\[api]/,/^\[/{s|^address =.*|address = "tcp://0.0.0.0:1317"|}' \
-        --expression '/^\[api]/,/^\[/{s|^enable =.*|enable = true|}' \
-        --expression '/^\[api]/,/^\[/{s|^enabled-unsafe-cors =.*|enabled-unsafe-cors = true|}' \
-        --expression '/^\[api]/,/^\[/{s|^max-open-connections =.*|max-open-connections = 1000|}' \
-        --expression '/^\[api]/,/^\[/{s|^swagger =.*|swagger = false|}' \
-        --expression '/^\[rosetta]/,/^\[/{s|^enable =.*|enable = false|}' \
-        --expression "/^\[state-sync]/,/^\[/{s|^snapshot-interval =.*|snapshot-interval = $SNAPSHOT_INTERVAL|}" \
-        --expression '/^\[state-sync]/,/^\[/{s|^snapshot-keep-recent =.*|snapshot-keep-recent = 10|}' \
-        --expression '/^\[telemetry]/,/^\[/{s|^enabled =.*|enabled = false|}' \
-        --in-place
+    contents="$(
+        "$JSOT_BINARY_NAME" toml-to-json "$AGORIC_HOME/config/app.toml" |
+            jq --arg snapshot_interval "$SNAPSHOT_INTERVAL" \
+                '
+            .api.address = "tcp://0.0.0.0:1317" |
+            .api.enable = "true" |
+            .api."enabled-unsafe-cors" = "true" |
+            .api."max-open-connections" = "1000" |
+            .api."rpc-max-body-bytes" = "15000000" |
+            .api.swagger = "false" |
+            ."pruning-interval" = "1000" |
+            ."pruning-keep-every" = "1000" |
+            ."pruning-keep-recent" = "10000" |
+            .rosetta.enable = "false" |
+            ."state-sync"."snapshot-interval" = $snapshot_interval |
+            ."state-sync"."snapshot-keep-recent" = "10" |
+            .telemetry.enabled = "false"
+        ' |
+            "$JSOT_BINARY_NAME" json-to-toml -
+    )"
+    echo -E "$contents" >"$AGORIC_HOME/config/app.toml"
 
-    sed "$AGORIC_HOME/config/config.toml" \
-        --expression 's|^addr_book_strict =.*|addr_book_strict = false|' \
-        --expression 's|^allow_duplicate_ip =.*|allow_duplicate_ip = true|' \
-        --expression 's|^log_level|# log_level|' \
-        --expression "s|^max_num_inbound_peers =.*|max_num_inbound_peers = 150|" \
-        --expression "s|^max_num_outbound_peers =.*|max_num_outbound_peers = 150|" \
-        --expression 's|^namespace =.*|namespace = "cometbft"|' \
-        --expression 's|^prometheus =.*|prometheus = false|' \
-        --expression "/^\[rpc]/,/^\[/{s|^laddr =.*|laddr = 'tcp://0.0.0.0:$RPC_PORT'|}" \
-        --in-place
+    contents="$(
+        "$JSOT_BINARY_NAME" toml-to-json "$AGORIC_HOME/config/config.toml" |
+            jq --arg rpc_address "tcp://0.0.0.0:$RPC_PORT" \
+                '
+            .instrumentation.namespace = "cometbft" |
+            .instrumentation.prometheus = "false" |
+            .p2p.addr_book_strict = "false" |
+            .p2p.allow_duplicate_ip = "true" |
+            .p2p.max_num_inbound_peers = "150" |
+            .p2p.max_num_outbound_peers = "150" |
+            .rpc.laddr = $rpc_address
+        ' |
+            "$JSOT_BINARY_NAME" json-to-toml -
+    )"
+    echo -E "$contents" >"$AGORIC_HOME/config/config.toml"
 
     if test -n "$NETWORK_CONFIG_URL"; then
-        sed "$AGORIC_HOME/config/config.toml" \
-            --expression 's|^enable =.*|enable = true|' \
-            --expression 's|^chunk_request_timeout =.*|chunk_request_timeout = "60s"|' \
-            --expression "s|^rpc_servers =.*|rpc_servers = '$EXTERNAL_RPC_ADDRESS,$EXTERNAL_RPC_ADDRESS'|" \
-            --expression "s|^seeds =.*|seeds = '$EXTERNAL_SEED'|" \
-            --expression "s|^trust_hash =.*|trust_hash = '$TRUSTED_BLOCK_HASH'|" \
-            --expression "s|^trust_height =.*|trust_height = $TRUSTED_BLOCK_HEIGHT|" \
-            --in-place
+        contents="$(
+            "$JSOT_BINARY_NAME" toml-to-json "$AGORIC_HOME/config/config.toml" |
+                jq --arg seed_address "$EXTERNAL_SEED" \
+                    --arg rpc_servers "$EXTERNAL_RPC_ADDRESS,$EXTERNAL_RPC_ADDRESS" \
+                    --arg trust_hash "$TRUSTED_BLOCK_HASH" \
+                    --arg trust_height "$TRUSTED_BLOCK_HEIGHT" \
+                    '
+                .p2p.seeds = $seed_address |
+                .statesync.chunk_request_timeout = "120s" |
+                .statesync.discovery_time = "60s" |
+                .statesync.enable = "true" |
+                .statesync.rpc_servers = $rpc_servers |
+                .statesync.trust_hash = $trust_hash |
+                .statesync.trust_height = $trust_height
+            ' |
+                "$JSOT_BINARY_NAME" json-to-toml -
+        )"
+        echo -E "$contents" >"$AGORIC_HOME/config/config.toml"
     fi
 
-    genesis_contents="$(
+    contents="$(
         jq --arg block_compute_limit "$BLOCK_COMPUTE_LIMIT" \
             --arg config_file_path "$CHAIN_BOOTSTRAP_VAT_CONFIG" \
             --arg denom "$UBLD_COIN" \
@@ -271,7 +301,7 @@ update_configurations() {
             .app_state.swingset.params.bootstrap_vat_config = $config_file_path
         ' <"$GENESIS_FILE_PATH"
     )"
-    echo -E "$genesis_contents" >"$GENESIS_FILE_PATH"
+    echo -E "$contents" >"$GENESIS_FILE_PATH"
 }
 
 check_for_dependencies
