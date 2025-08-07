@@ -30,7 +30,7 @@ SNAPSHOT_CHUNKS_DOWNLOAD_PATH="/state/tmp"
 SNAPSHOT_INTERVAL="1000"
 SLOGSENDER="${SLOGSENDER:-"@agoric/telemetry/src/context-aware-slog-file.js"}"
 TRUSTED_BLOCK_HASH=""
-TRUSTED_BLOCK_HEIGHT=""
+TRUSTED_BLOCK_HEIGHT="${TRUSTED_BLOCK_HEIGHT:-""}"
 UBLD_COIN="ubld"
 VALIDATOR_KEY_NAME="validator"
 VOID="/dev/null"
@@ -173,11 +173,14 @@ populate_data_for_follower() {
     EXTERNAL_SEED="$(echo "$NETWORK_CONFIG" | jq '.seeds[0]' --raw-output)"
     GENESIS_SOURCE_URL="$(echo "$NETWORK_CONFIG" | jq '.gci' --raw-output)"
 
-    LATEST_HEIGHT="$(get_node_info "$EXTERNAL_RPC_ADDRESS" | jq '.SyncInfo.latest_block_height' --raw-output)"
     curl "$GENESIS_SOURCE_URL" --fail --location --silent |
         jq '.result.genesis | .app_state |= if has("vbank") then . else .vbank = {"params": {}} end' --raw-output >"$GENESIS_FILE_PATH"
 
-    TRUSTED_BLOCK_HEIGHT="$((("$LATEST_HEIGHT" / "$SNAPSHOT_INTERVAL") * "$SNAPSHOT_INTERVAL" + 1))"
+    if test -z "$TRUSTED_BLOCK_HEIGHT"
+    then
+        LATEST_HEIGHT="$(get_node_info "$EXTERNAL_RPC_ADDRESS" | jq '.SyncInfo.latest_block_height' --raw-output)"
+        TRUSTED_BLOCK_HEIGHT="$((("$LATEST_HEIGHT" / "$SNAPSHOT_INTERVAL") * "$SNAPSHOT_INTERVAL" + 1))"
+    fi
 
     TRUSTED_BLOCK_HASH="$(
         curl "$EXTERNAL_RPC_ADDRESS/block?height=$TRUSTED_BLOCK_HEIGHT" --fail --location --silent |
