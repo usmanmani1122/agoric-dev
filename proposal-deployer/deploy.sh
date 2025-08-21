@@ -12,7 +12,7 @@ PROPOSAL_DEPLOY_SCRIPT_PATH="deployer-proposal.js"
 PROPOSAL_FILES_PREFIX="proposal-file"
 PROPOSAL_SOURCE_PATH="$(readlink --canonicalize "$1")"
 SIGN_BROADCAST_OPTIONS="
- --broadcast-mode block \
+ --broadcast-mode sync \
  --chain-id $CHAIN_ID \
  --from validator \
  --gas auto \
@@ -21,15 +21,16 @@ SIGN_BROADCAST_OPTIONS="
  --keyring-backend test \
  --yes
 "
+VOID="/dev/null"
 
 build_proposal() {
     print "Generating build ⏳"
-    agoric run "$PROPOSAL_DEPLOY_SCRIPT_PATH" >/dev/null 2>&1
+    agoric run "$PROPOSAL_DEPLOY_SCRIPT_PATH" > "$VOID" 2>&1
     re_print "Generated builds ✅"
 }
 
 check_for_binaries() {
-    if ! curl --silent "https://raw.githubusercontent.com/Agoric/agoric-sdk/refs/heads/master/scripts/smoketest-binaries.sh" | /bin/bash >/dev/null; then
+    if ! curl --silent "https://raw.githubusercontent.com/Agoric/agoric-sdk/refs/heads/master/scripts/smoketest-binaries.sh" | /bin/bash > "$VOID"; then
         exit 1
     fi
 }
@@ -83,9 +84,22 @@ EOF
     re_print "Created temporary scripts ✅"
 }
 
+get_node_status() {
+    curl --fail --location --silent "http://0.0.0.0:26657/status" | jq '.result' --raw-output
+}
+
+get_transaction_data() {
+    local transaction_hash="$1"
+
+    agd query tx "$transaction_hash" --home "$AGORIC_HOME" --output "json" 2> "$VOID"
+}
+
 install_bundle() {
+    local output=""
+
     print "Installing bundle $(basename "$1") ⏳"
-    agd tx swingset install-bundle "@$1" $SIGN_BROADCAST_OPTIONS --compress >/dev/null 2>&1
+    output="$(agd tx swingset install-bundle "@$1" $SIGN_BROADCAST_OPTIONS --compress --output "json" 2> "$VOID")"
+    wait_for_transaction "$(echo "$output" | jq '.txhash' --raw-output)"
     re_print "Installed bundle $(basename "$1") ✅"
 }
 
@@ -114,32 +128,46 @@ reset() {
 }
 
 submit_proposal() {
+    local output=""
+
     print "Submitting proposal ⏳"
-    agd tx gov submit-proposal swingset-core-eval "${PROPOSAL_FILES_PREFIX}-permit.json" "${PROPOSAL_FILES_PREFIX}.js" \
-        $SIGN_BROADCAST_OPTIONS --deposit "10000000ubld" --description "Evaluate script" --title "Core Eval" >/dev/null 2>&1
+    output="$(
+        agd tx gov submit-proposal swingset-core-eval "${PROPOSAL_FILES_PREFIX}-permit.json" "${PROPOSAL_FILES_PREFIX}.js" \
+        $SIGN_BROADCAST_OPTIONS \
+        --deposit "10000000ubld" \
+        --description "Evaluate script" \
+        --output "json" \
+        --title "Core Eval" 2> "$VOID"
+    )"
+    wait_for_transaction "$(echo "$output" | jq '.txhash' --raw-output)"
     re_print "Submitted proposal ✅"
 }
 
 vote_for_proposal_and_wait() {
+    local json=""
+    local proposal_id=""
+    local proposal_status=""
+
     print "Voting for proposal to pass ⏳"
 
     wait_for_block
-    proposal=$(
+    proposal_id="$(
         agd query gov proposals --output "json" |
             jq --raw-output '.proposals | last | if .proposal_id == null then .id else .proposal_id end'
-    )
+    )"
     wait_for_block
 
-    agd tx gov deposit "$proposal" 50000000ubld $SIGN_BROADCAST_OPTIONS >/dev/null 2>&1
+    agd tx gov deposit "$proposal_id" "50000000ubld" $SIGN_BROADCAST_OPTIONS > "$VOID" 2>&1
     wait_for_block
 
-    agd tx gov vote "$proposal" yes $SIGN_BROADCAST_OPTIONS >/dev/null 2>&1
+    agd tx gov vote "$proposal_id" yes $SIGN_BROADCAST_OPTIONS > "$VOID" 2>&1
     wait_for_block
 
     while true; do
-        json=$(agd query gov proposal "$proposal" --output "json")
-        status=$(echo "$json" | jq --raw-output '.status')
-        case $status in
+        json="$(agd query gov proposal "$proposal_id" --output "json")"
+        proposal_status="$(echo "$json" | jq --raw-output 'if .proposal then .proposal.status else .status end')"
+
+        case $proposal_status in
         PROPOSAL_STATUS_PASSED)
             break
             ;;
@@ -158,13 +186,15 @@ vote_for_proposal_and_wait() {
 }
 
 wait_for_block() (
-    times=${1:-1}
+    local first_unique_block_height=""
+    local second_unique_block_height=""
+    local times="${1:-"1"}"
 
     for ((i = 1; i <= times; i++)); do
-        b1=$(wait_for_bootstrap)
+        first_unique_block_height="$(wait_for_bootstrap)"
         while true; do
-            b2=$(wait_for_bootstrap)
-            if [[ "$b1" != "$b2" ]]; then
+            second_unique_block_height="$(wait_for_bootstrap)"
+            if test "$first_unique_block_height" != "$second_unique_block_height"; then
                 break
             fi
             sleep 1
@@ -174,12 +204,23 @@ wait_for_block() (
 
 wait_for_bootstrap() {
     while true; do
-        json=$(agd status 2>/dev/null)
-        if last_height=$(echo "$json" | jq --raw-output '.SyncInfo.latest_block_height'); then
+        json="$(get_node_status 2> "$VOID")"
+        if last_height="$(echo "$json" | jq --raw-output '.sync_info.latest_block_height')"; then
             echo "$last_height"
-            if [[ "$last_height" != "1" ]]; then
+            if test "$last_height" != "1"; then
                 return
             fi
+        fi
+        sleep 2
+    done
+}
+
+wait_for_transaction() {
+    local transaction_hash="$1"
+
+    while true; do
+        if get_transaction_data "$transaction_hash" > "$VOID"; then
+            break
         fi
         sleep 2
     done
