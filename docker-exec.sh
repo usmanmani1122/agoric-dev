@@ -40,7 +40,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-CONTAINER_ID=$(docker ps --all --filter "ancestor=$IMAGE" --quiet)
+CONTAINER_ID="$(docker ps --all --filter "ancestor=$IMAGE" --quiet)"
 
 if test -z "$CONTAINER_ID"; then
   echo "No container found with image '$IMAGE'"

@@ -1,7 +1,7 @@
 #! /bin/bash
 # shellcheck disable=SC2086,SC2089,SC2090
 
-set -o errexit -o pipefail
+set -o errexit -o nounset -o pipefail
 
 COMMIT_ID="$1"
 CONTEXT="${CONTEXT:-"instagoric"}"
@@ -79,15 +79,15 @@ main() {
   echo "Using wallet '$FUNDING_WALLET' for submitting proposal '$UPGRADE_TO' with info '$UPGRADE_INFO' to be executed at height '$UPGRADE_HEIGHT'"
 
   execute_command_inside_pod "
-    agd tx gov submit-proposal software-upgrade \"$UPGRADE_TO\" \
+    agd tx upgrade software-upgrade \"$UPGRADE_TO\" \
      --broadcast-mode \"sync\" \
      --chain-id \"\$CHAIN_ID\" \
      --deposit \"$DEPOSIT_AMOUNT$DEPOSIT_DENOM\" \
-     --description \"This proposal if voted will upgrade the chain to $UPGRADE_TO\" \
      --from \"$FUNDING_WALLET\" \
      --gas \"auto\" \
      --keyring-backend \"test\" \
      --home \"/state/\$CHAIN_ID\" \
+     --summary \"This proposal if voted will upgrade the chain to $UPGRADE_TO\" \
      --title \"Upgrade to $UPGRADE_TO\" \
      --upgrade-height \"$UPGRADE_HEIGHT\" \
      --upgrade-info $(echo -n $UPGRADE_INFO | jq --raw-input --slurp .) \

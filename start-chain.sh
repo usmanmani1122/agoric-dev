@@ -53,7 +53,6 @@ COINS=(
 )
 CURRENT_DIRECTORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>"$VOID" && pwd)"
 GENESIS_AMOUNT="50000000$UBLD_COIN"
-JSOT_DOWNLOAD_PATH="https://storage.googleapis.com/agoric-snapshots-public/$JSOT_BINARY_NAME"
 
 # Add some default accounts
 add_default_wallets() {
@@ -88,6 +87,9 @@ add_genesis_transaction() {
 }
 
 check_for_dependencies() {
+    local binary_path
+    local cache_path
+
     if ! which node >"$VOID" || ! which yarn >"$VOID"; then
         if test -n "$NVM_DIR"; then
             source "$NVM_DIR/nvm.sh"
@@ -98,9 +100,15 @@ check_for_dependencies() {
     fi
 
     if ! which "$JSOT_BINARY_NAME" >"$VOID"; then
-        local binary_path="/usr/bin/$JSOT_BINARY_NAME"
-        echo "'$JSOT_BINARY_NAME' not found, installing..."
-        curl --fail --location --output "$binary_path" --silent "$JSOT_DOWNLOAD_PATH"
+        binary_path="/usr/bin/$JSOT_BINARY_NAME"
+        cache_path="$CURRENT_DIRECTORY_PATH/${JSOT_BINARY_NAME}-$(uname --machine)"
+
+        if ! test -f "$cache_path"; then
+            log_error "Couldn't find binary on local path $cache_path"
+            exit 1
+        fi
+
+        cp "$cache_path" "$binary_path"
         chmod +x "$binary_path"
     fi
 }
