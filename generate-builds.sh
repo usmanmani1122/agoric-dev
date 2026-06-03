@@ -3,8 +3,8 @@
 
 set -o errexit
 
-CURRENT_DIRECTORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 SDK_SRC="${SDK_SRC:-"/workspaces/repositories/agoric-sdk"}"
+VOID="/dev/null"
 
 CLI_PATH="$SDK_SRC/packages/agoric-cli"
 
@@ -15,12 +15,12 @@ check_for_dependencies() {
     fi
     SDK_SRC="$(readlink --canonicalize "$SDK_SRC")"
 
-    if ! which make >/dev/null; then
+    if ! which make > "$VOID"; then
         log_error "[FATAL] make not installed"
         exit 1
     fi
 
-    if ! which node >/dev/null || ! which yarn >/dev/null; then
+    if ! which node > "$VOID" || ! which yarn > "$VOID"; then
         if test -n "$NVM_DIR"; then
             source "$NVM_DIR/nvm.sh"
         else
@@ -46,4 +46,6 @@ log_error() {
 rm --force --recursive $SDK_SRC/golang/cosmos/build/*
 check_for_dependencies
 create_and_link_builds
-"$CURRENT_DIRECTORY_PATH/check-binaries.sh"
+curl --silent \
+    "https://raw.githubusercontent.com/Agoric/agoric-sdk/refs/heads/master/scripts/smoketest-binaries.sh" |
+    /bin/bash > "$VOID"
