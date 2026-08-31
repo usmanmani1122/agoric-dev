@@ -19,4 +19,4 @@ cd "$SDK_SRC/golang/cosmos" || exit
 go mod tidy
 
 cd "$SDK_SRC" || exit
-yarn install
+COREPACK_ENABLE_STRICT="0" yarn install
